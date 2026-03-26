@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <title>Управление установкой</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: #1a1e24;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 16px;
+        }
+
+        .app-container {
+            max-width: 480px;
+            width: 100%;
+            margin: 0 auto;
+            background: #0f1217;
+            border-radius: 32px;
+            box-shadow: 0 20px 35px -10px rgba(0,0,0,0.5);
+            overflow: hidden;
+            padding: 20px 16px 30px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .header-left {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-settings, .btn-change-id {
+            background: #2c313a;
+            border: none;
+            color: white;
+            font-size: 14px;
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn-settings:active, .btn-change-id:active {
+            background: #3e4550;
+            transform: scale(0.96);
+        }
+
+        .info-panel {
+            background: #1e242c;
+            border-radius: 10px;
+            padding: 16px 20px 20px;
+            margin-bottom: 24px;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .address-line {
+            font-size: 16px;
+            font-weight: 600;
+            color: #8ab4f8;
+            border-bottom: 1px solid #2f3a46;
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+            text-align: center;
+            word-break: break-word;
+        }
+
+        .message-area {
+            flex: 1;
+            min-height: 90px;
+            font-size: 18px;
+            line-height: 1.4;
+            color: #eef2ff;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 0;
+            word-break: break-word;
+        }
+
+        .temp-area {
+            border-top: 1px solid #2f3a46;
+            padding-top: 12px;
+            margin-top: 8px;
+            font-size: 24px;
+            font-weight: 600;
+            text-align: center;
+            color: #ffb86c;
+        }
+
+        .temp-label {
+            font-size: 14px;
+            font-weight: normal;
+            color: #9aa9b9;
+            margin-right: 6px;
+        }
+
+        .temp-value {
+            font-family: monospace;
+            font-size: 26px;
+            font-weight: 700;
+        }
+
+        .temp-negative {
+            color: #6c8ebf;
+        }
+
+        .temp-positive {
+            color: #ffb86c;
+        }
+
+        .buttons-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .ctrl-btn {
+            background: #2c313a;
+            border: none;
+            color: white;
+            font-size: 13px;
+            font-weight: 500;
+            padding: 12px 0;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-align: center;
+        }
+
+        .ctrl-btn:active {
+            background: #3e4550;
+            transform: scale(0.97);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: #1e242c;
+            border-radius: 20px;
+            width: 85%;
+            max-width: 320px;
+            padding: 24px 20px;
+            text-align: center;
+        }
+
+        .modal-content h3 {
+            margin-bottom: 16px;
+            color: white;
+        }
+
+        .modal-content input {
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: none;
+            background: #0f1217;
+            color: white;
+            font-size: 16px;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+
+        .modal-content button {
+            background: #2c7da0;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 8px;
+        }
+
+        .status-badge {
+            font-size: 12px;
+            text-align: center;
+            margin-top: 12px;
+            color: #7e8c9e;
+        }
+
+        .footer-note {
+            font-size: 10px;
+            text-align: center;
+            margin-top: 20px;
+            color: #4a5562;
+        }
+
+        /* Стили для админ-панели */
+        .admin-panel {
+            max-width: 900px;
+            width: 100%;
+        }
+
+        .admin-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .admin-table th, .admin-table td {
+            border: 1px solid #2f3a46;
+            padding: 10px;
+            text-align: left;
+            color: white;
+            vertical-align: top;
+        }
+
+        .admin-table th {
+            background: #2c313a;
+        }
+
+        .admin-table input {
+            background: #0f1217;
+            border: 1px solid #2f3a46;
+            color: white;
+            padding: 6px;
+            border-radius: 6px;
+            width: 100%;
+            margin-bottom: 5px;
+        }
+
+        .topic-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .topic-group input {
+            margin-bottom: 0;
+        }
+
+        .delete-btn {
+            background: #8b3a3a;
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .add-btn {
+            background: #2c7da0;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        .back-btn {
+            background: #2c313a;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .admin-table th, .admin-table td {
+                font-size: 12px;
+                padding: 6px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div id="mainApp" class="app-container">
+    <div class="header">
+        <div class="header-left">
+            <button class="btn-settings" id="settingsBtn">⚙️ Настройки</button>
+        </div>
+        <button class="btn-change-id" id="changeIdBtn">Сменить ID</button>
+    </div>
+
+    <div class="info-panel">
+        <div class="address-line" id="addressDisplay">— Адрес не задан —</div>
+        <div class="message-area" id="messageDisplay">Ожидание сообщений...</div>
+        <div class="temp-area">
+            <span class="temp-label">🌡️ Температура</span>
+            <span class="temp-value" id="tempValue">--.-</span>
+            <span>°C</span>
+        </div>
+    </div>
+
+    <div class="buttons-grid">
+        <button class="ctrl-btn" data-cmd="status">Статус</button>
+        <button class="ctrl-btn" data-cmd="on">Включить</button>
+        <button class="ctrl-btn" data-cmd="off">Выключить</button>
+        <button class="ctrl-btn" data-cmd="dry_start">Начать сушку</button>
+        <button class="ctrl-btn" data-cmd="dry_stop">Завершить сушку</button>
+    </div>
+    <div class="status-badge" id="mqttStatus">🔌 Подключение...</div>
+    <div class="footer-note">MQTT: защищённое подключение (WSS)</div>
+</div>
+
+<!-- Модалка ввода ID -->
+<div id="idModal" class="modal">
+    <div class="modal-content">
+        <h3>Введите ваш ID</h3>
+        <input type="text" id="clientIdInput" placeholder="Например: Svenlana_N" autocomplete="off">
+        <button id="saveIdBtn">Сохранить</button>
+    </div>
+</div>
+
+<!-- Модалка входа в админку -->
+<div id="adminLoginModal" class="modal">
+    <div class="modal-content">
+        <h3>🔐 Вход в настройки</h3>
+        <input type="text" id="adminLogin" placeholder="Логин" autocomplete="off">
+        <input type="password" id="adminPassword" placeholder="Пароль">
+        <button id="adminLoginBtn">Войти</button>
+        <button id="adminCancelBtn">Отмена</button>
+    </div>
+</div>
+
+<!-- Админ-панель -->
+<div id="adminPanel" style="display: none;" class="app-container admin-panel">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 style="color: white;">⚙️ Админ-панель</h2>
+        <button id="backToMainBtn" class="back-btn">◀ Назад</button>
+    </div>
+    
+    <div>
+        <h3 style="color: white; margin-bottom: 10px;">🏠 Управление адресами и топиками</h3>
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th style="width: 25%">Адрес</th>
+                    <th style="width: 25%">ID клиентов</th>
+                    <th style="width: 35%">Топики (Read / Post / Temp)</th>
+                    <th style="width: 15%">Действие</th>
+                </tr>
+            </thead>
+            <tbody id="clientsTableBody"></tbody>
+        </table>
+        <div style="margin-top: 20px; padding: 16px; background: #1e242c; border-radius: 10px;">
+            <h4 style="color: white; margin-bottom: 10px;">➕ Добавить новую установку</h4>
+            <input type="text" id="newAddress" placeholder="Адрес" style="background: #0f1217; border: 1px solid #2f3a46; color: white; padding: 8px; border-radius: 6px; width: 100%; margin-bottom: 8px;">
+            <input type="text" id="newIds" placeholder="ID клиентов (через запятую)" style="background: #0f1217; border: 1px solid #2f3a46; color: white; padding: 8px; border-radius: 6px; width: 100%; margin-bottom: 8px;">
+            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                <input type="text" id="newReadTopic" placeholder="Топик Read" style="background: #0f1217; border: 1px solid #2f3a46; color: white; padding: 8px; border-radius: 6px; flex: 1;">
+                <input type="text" id="newPostTopic" placeholder="Топик Post" style="background: #0f1217; border: 1px solid #2f3a46; color: white; padding: 8px; border-radius: 6px; flex: 1;">
+                <input type="text" id="newTempTopic" placeholder="Топик Temp" style="background: #0f1217; border: 1px solid #2f3a46; color: white; padding: 8px; border-radius: 6px; flex: 1;">
+            </div>
+            <button id="addAddressBtn" class="add-btn" style="width: 100%;">➕ Добавить установку</button>
+        </div>
+    </div>
+    <div class="footer-note" style="margin-top: 20px;">💡 Каждый адрес имеет свои настройки топиков.</div>
+</div>
+
+<script>
+    // --------------------------------------------------------------
+    //  КОНФИГУРАЦИЯ
+    // --------------------------------------------------------------
+    const DEFAULT_CONFIG = {
+        installations: [
+            {
+                address: "пр. Мира 48",
+                clientIds: ["Svenlana_N", "Kseniya_N"],
+                topics: { read: "Read", post: "Post", temp: "Temp" }
+            },
+            {
+                address: "ул. Лермонтова 15",
+                clientIds: ["Svenlana_L", "Oksana_L"],
+                topics: { read: "Read", post: "Post", temp: "Temp" }
+            }
+        ]
+    };
+    
+    const ADMIN_CREDENTIALS = { login: "admin", password: "admin123" };
+    
+    let currentConfig = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+    let mqttClient = null;
+    let currentClientId = null;
+    let currentTopics = null;
+    let isConnecting = false;
+    let reconnectTimer = null;
+    
+    // DOM элементы
+    const mainApp = document.getElementById("mainApp");
+    const adminPanel = document.getElementById("adminPanel");
+    const adminLoginModal = document.getElementById("adminLoginModal");
+    const idModal = document.getElementById("idModal");
+    const addressDisplay = document.getElementById("addressDisplay");
+    const messageDisplay = document.getElementById("messageDisplay");
+    const tempValueSpan = document.getElementById("tempValue");
+    const mqttStatusSpan = document.getElementById("mqttStatus");
+    const clientIdInput = document.getElementById("clientIdInput");
+    const saveIdBtn = document.getElementById("saveIdBtn");
+    const changeIdBtn = document.getElementById("changeIdBtn");
+    const settingsBtn = document.getElementById("settingsBtn");
+    
+    // --------------------------------------------------------------
+    //  РАБОТА С КОНФИГОМ
+    // --------------------------------------------------------------
+    function loadConfig() {
+        const saved = localStorage.getItem("mqtt_admin_config_v2");
+        if (saved) {
+            try {
+                currentConfig = JSON.parse(saved);
+            } catch(e) { console.error(e); }
+        }
+    }
+    
+    function saveConfig() {
+        localStorage.setItem("mqtt_admin_config_v2", JSON.stringify(currentConfig));
+    }
+    
+    function getInstallationByClientId(clientId) {
+        return currentConfig.installations.find(inst => inst.clientIds.includes(clientId));
+    }
+    
+    function getAddressByClientId(clientId) {
+        const inst = getInstallationByClientId(clientId);
+        return inst ? inst.address : "Адрес не найден";
+    }
+    
+    function getTopicsByClientId(clientId) {
+        const inst = getInstallationByClientId(clientId);
+        return inst ? { ...inst.topics } : null;
+    }
+    
+    function updateAddressDisplay() {
+        if (currentClientId) {
+            addressDisplay.innerText = getAddressByClientId(currentClientId);
+            currentTopics = getTopicsByClientId(currentClientId);
+        } else {
+            addressDisplay.innerText = "— Адрес не задан —";
+            currentTopics = null;
+        }
+    }
+    
+    // --------------------------------------------------------------
+    //  MQTT (с защитой от множественных подключений)
+    // --------------------------------------------------------------
+    function disconnectMqtt() {
+        if (reconnectTimer) {
+            clearTimeout(reconnectTimer);
+            reconnectTimer = null;
+        }
+        if (mqttClient) {
+            if (mqttClient.isConnected()) {
+                try {
+                    mqttClient.disconnect();
+                } catch(e) { console.log("Disconnect error:", e); }
+            }
+            mqttClient = null;
+        }
+        isConnecting = false;
+    }
+    
+    function onMessageArrived(message) {
+        const topic = message.destinationName;
+        const payload = message.payloadString;
+        console.log(`[MQTT] ${topic} -> ${payload}`);
+        
+        if (!currentTopics) return;
+        
+        if (topic === currentTopics.post) {
+            messageDisplay.innerText = payload || "(пустое сообщение)";
+        } 
+        else if (topic === currentTopics.temp) {
+            const match = String(payload).match(/(-?\d+(?:\.\d+)?)/);
+            let formatted = "--.-";
+            if (match) {
+                let num = parseFloat(match[1]);
+                if (!isNaN(num)) {
+                    formatted = num.toFixed(1);
+                    formatted = num > 0 ? `+${formatted}` : formatted;
+                    if (num === 0) formatted = "+0.0";
+                }
+            }
+            tempValueSpan.innerText = formatted;
+            tempValueSpan.className = formatted.startsWith("-") ? "temp-value temp-negative" : "temp-value temp-positive";
+        }
+    }
+    
+    function onConnect() {
+        console.log("MQTT подключен");
+        isConnecting = false;
+        mqttStatusSpan.innerText = "✅ MQTT онлайн";
+        
+        if (mqttClient && mqttClient.isConnected() && currentTopics) {
+            try {
+                mqttClient.subscribe(currentTopics.post);
+                mqttClient.subscribe(currentTopics.temp);
+                console.log(`Подписка на: ${currentTopics.post}, ${currentTopics.temp}`);
+                publishCommand("$3#");
+            } catch(e) { console.error("Subscribe error:", e); }
+        }
+    }
+    
+    function onConnectionLost(response) {
+        console.log("Соединение потеряно", response);
+        mqttStatusSpan.innerText = "❌ Соединение потеряно";
+        isConnecting = false;
+        
+        if (reconnectTimer) clearTimeout(reconnectTimer);
+        reconnectTimer = setTimeout(() => {
+            if (currentTopics) {
+                console.log("Попытка переподключения...");
+                initMqtt();
+            }
+        }, 5000);
+    }
+    
+    function initMqtt() {
+        if (!currentTopics) {
+            console.log("Нет топиков, подключение не требуется");
+            mqttStatusSpan.innerText = "⚠️ Выберите ID";
+            return;
+        }
+        
+        if (isConnecting) {
+            console.log("Уже подключаемся...");
+            return;
+        }
+        
+        if (mqttClient && mqttClient.isConnected()) {
+            console.log("Уже подключены");
+            return;
+        }
+        
+        disconnectMqtt();
+        isConnecting = true;
+        mqttStatusSpan.innerText = "🔌 Подключение...";
+        
+        const clientId = "web_" + Math.random().toString(36).substr(2, 8);
+        mqttClient = new Paho.MQTT.Client("m4.wqtt.ru", 15415, "/mqtt", clientId);
+        mqttClient.onConnectionLost = onConnectionLost;
+        mqttClient.onMessageArrived = onMessageArrived;
+        
+        const options = {
+            onSuccess: onConnect,
+            onFailure: (err) => {
+                console.error("Ошибка подключения", err);
+                isConnecting = false;
+                mqttStatusSpan.innerText = "🔴 Ошибка подключения";
+                reconnectTimer = setTimeout(() => {
+                    if (currentTopics) initMqtt();
+                }, 10000);
+            },
+            userName: "u_raTefa",
+            password: "0B2Gp4iF",
+            useSSL: true,
+            keepAliveInterval: 60,
+            mqttVersion: 4
+        };
+        
+        mqttClient.connect(options);
+    }
+    
+    function publishCommand(payload) {
+        if (!mqttClient || !mqttClient.isConnected()) {
+            console.warn("Нет соединения");
+            mqttStatusSpan.innerText = "⚠️ Нет соединения";
+            return false;
+        }
+        if (!currentTopics) return false;
+        
+        const message = new Paho.MQTT.Message(payload);
+        message.destinationName = currentTopics.read;
+        mqttClient.send(message);
+        console.log(`[MQTT] Отправлено в ${currentTopics.read}: ${payload}`);
+        return true;
+    }
+    
+    // --------------------------------------------------------------
+    //  ID КЛИЕНТА
+    // --------------------------------------------------------------
+    function setClientId(id) {
+        if (!id || id.trim() === "") return false;
+        
+        const newId = id.trim();
+        const newTopics = getTopicsByClientId(newId);
+        
+        if (!newTopics) {
+            alert(`ID "${newId}" не найден в базе. Обратитесь к администратору.`);
+            return false;
+        }
+        
+        const needReconnect = (currentClientId !== newId);
+        currentClientId = newId;
+        localStorage.setItem("app_client_id", currentClientId);
+        updateAddressDisplay();
+        
+        if (needReconnect) {
+            messageDisplay.innerText = `ID: ${currentClientId}. Подключение...`;
+            tempValueSpan.innerText = "--.-";
+            tempValueSpan.className = "temp-value";
+            initMqtt();
+        }
+        
+        return true;
+    }
+    
+    function loadStoredId() {
+        const stored = localStorage.getItem("app_client_id");
+        if (stored) {
+            const inst = getInstallationByClientId(stored);
+            if (inst) {
+                setClientId(stored);
+                return true;
+            } else {
+                localStorage.removeItem("app_client_id");
+            }
+        }
+        return false;
+    }
+    
+    function showIdModal() {
+        clientIdInput.value = currentClientId || "";
+        idModal.style.display = "flex";
+    }
+    
+    // --------------------------------------------------------------
+    //  АДМИН-ПАНЕЛЬ
+    // --------------------------------------------------------------
+    function renderAdminTable() {
+        const tbody = document.getElementById("clientsTableBody");
+        tbody.innerHTML = "";
+        
+        currentConfig.installations.forEach((inst, idx) => {
+            const row = tbody.insertRow();
+            
+            // Адрес
+            const cellAddr = row.insertCell(0);
+            const addrInput = document.createElement("input");
+            addrInput.value = inst.address;
+            addrInput.addEventListener("change", (e) => {
+                currentConfig.installations[idx].address = e.target.value;
+                saveConfig();
+                if (currentClientId && getInstallationByClientId(currentClientId)) updateAddressDisplay();
+                renderAdminTable();
+            });
+            cellAddr.appendChild(addrInput);
+            
+            // ID
+            const cellIds = row.insertCell(1);
+            const idsInput = document.createElement("input");
+            idsInput.value = inst.clientIds.join(", ");
+            idsInput.addEventListener("change", (e) => {
+                const newIds = e.target.value.split(",").map(s => s.trim()).filter(s => s);
+                currentConfig.installations[idx].clientIds = newIds;
+                saveConfig();
+                if (currentClientId && !getInstallationByClientId(currentClientId)) {
+                    currentClientId = null;
+                    localStorage.removeItem("app_client_id");
+                    updateAddressDisplay();
+                    disconnectMqtt();
+                    mqttStatusSpan.innerText = "🔌 Выберите ID";
+                }
+                renderAdminTable();
+            });
+            cellIds.appendChild(idsInput);
+            
+            // Топики
+            const cellTopics = row.insertCell(2);
+            const topicsDiv = document.createElement("div");
+            topicsDiv.className = "topic-group";
+            
+            const readInput = document.createElement("input");
+            readInput.placeholder = "Read";
+            readInput.value = inst.topics.read;
+            readInput.addEventListener("change", (e) => {
+                currentConfig.installations[idx].topics.read = e.target.value;
+                saveConfig();
+                if (currentClientId && getInstallationByClientId(currentClientId) === inst) {
+                    currentTopics = inst.topics;
+                    initMqtt();
+                }
+            });
+            
+            const postInput = document.createElement("input");
+            postInput.placeholder = "Post";
+            postInput.value = inst.topics.post;
+            postInput.addEventListener("change", (e) => {
+                currentConfig.installations[idx].topics.post = e.target.value;
+                saveConfig();
+                if (currentClientId && getInstallationByClientId(currentClientId) === inst) {
+                    currentTopics = inst.topics;
+                    initMqtt();
+                }
+            });
+            
+            const tempInput = document.createElement("input");
+            tempInput.placeholder = "Temp";
+            tempInput.value = inst.topics.temp;
+            tempInput.addEventListener("change", (e) => {
+                currentConfig.installations[idx].topics.temp = e.target.value;
+                saveConfig();
+                if (currentClientId && getInstallationByClientId(currentClientId) === inst) {
+                    currentTopics = inst.topics;
+                    initMqtt();
+                }
+            });
+            
+            topicsDiv.appendChild(readInput);
+            topicsDiv.appendChild(postInput);
+            topicsDiv.appendChild(tempInput);
+            cellTopics.appendChild(topicsDiv);
+            
+            // Удалить
+            const cellAction = row.insertCell(3);
+            const delBtn = document.createElement("button");
+            delBtn.textContent = "🗑️ Удалить";
+            delBtn.className = "delete-btn";
+            delBtn.onclick = () => {
+                if (confirm(`Удалить "${inst.address}"?`)) {
+                    currentConfig.installations.splice(idx, 1);
+                    saveConfig();
+                    if (currentClientId && !getInstallationByClientId(currentClientId)) {
+                        currentClientId = null;
+                        localStorage.removeItem("app_client_id");
+                        updateAddressDisplay();
+                        disconnectMqtt();
+                        mqttStatusSpan.innerText = "🔌 Выберите ID";
+                    }
+                    renderAdminTable();
+                }
+            };
+            cellAction.appendChild(delBtn);
+        });
+    }
+    
+    function addNewInstallation() {
+        const address = document.getElementById("newAddress").value.trim();
+        const idsStr = document.getElementById("newIds").value.trim();
+        const readTopic = document.getElementById("newReadTopic").value.trim() || "Read";
+        const postTopic = document.getElementById("newPostTopic").value.trim() || "Post";
+        const tempTopic = document.getElementById("newTempTopic").value.trim() || "Temp";
+        
+        if (!address || !idsStr) {
+            alert("Заполните адрес и ID");
+            return;
+        }
+        
+        const clientIds = idsStr.split(",").map(s => s.trim()).filter(s => s);
+        if (clientIds.length === 0) return;
+        
+        currentConfig.installations.push({
+            address,
+            clientIds,
+            topics: { read: readTopic, post: postTopic, temp: tempTopic }
+        });
+        
+        saveConfig();
+        renderAdminTable();
+        
+        document.getElementById("newAddress").value = "";
+        document.getElementById("newIds").value = "";
+        document.getElementById("newReadTopic").value = "";
+        document.getElementById("newPostTopic").value = "";
+        document.getElementById("newTempTopic").value = "";
+    }
+    
+    // --------------------------------------------------------------
+    //  АДМИН-ВХОД
+    // --------------------------------------------------------------
+    function showAdminLogin() {
+        document.getElementById("adminLogin").value = "";
+        document.getElementById("adminPassword").value = "";
+        adminLoginModal.style.display = "flex";
+    }
+    
+    function checkAdminLogin() {
+        const login = document.getElementById("adminLogin").value;
+        const password = document.getElementById("adminPassword").value;
+        if (login === ADMIN_CREDENTIALS.login && password === ADMIN_CREDENTIALS.password) {
+            adminLoginModal.style.display = "none";
+            mainApp.style.display = "none";
+            adminPanel.style.display = "block";
+            renderAdminTable();
+        } else {
+            alert("Неверный логин или пароль!");
+        }
+    }
+    
+    function closeAdminPanel() {
+        mainApp.style.display = "block";
+        adminPanel.style.display = "none";
+        if (currentClientId) {
+            initMqtt();
+        } else {
+            mqttStatusSpan.innerText = "🔌 Выберите ID";
+        }
+    }
+    
+    // --------------------------------------------------------------
+    //  КНОПКИ
+    // --------------------------------------------------------------
+    function handleCommand(cmdType) {
+        const payloads = {
+            status: "$3#", on: "$1#", off: "$11#",
+            dry_start: "$2#", dry_stop: "$22#"
+        };
+        publishCommand(payloads[cmdType]);
+    }
+    
+    function bindButtons() {
+        document.querySelectorAll(".ctrl-btn").forEach(btn => {
+            btn.onclick = () => handleCommand(btn.dataset.cmd);
+        });
+    }
+    
+    // --------------------------------------------------------------
+    //  ИНИЦИАЛИЗАЦИЯ
+    // --------------------------------------------------------------
+    function setupEventListeners() {
+        changeIdBtn.onclick = showIdModal;
+        settingsBtn.onclick = showAdminLogin;
+        saveIdBtn.onclick = () => {
+            const newId = clientIdInput.value.trim();
+            if (newId && setClientId(newId)) {
+                idModal.style.display = "none";
+            } else if (!newId) {
+                alert("Введите ID");
+            }
+        };
+        document.getElementById("adminLoginBtn").onclick = checkAdminLogin;
+        document.getElementById("adminCancelBtn").onclick = () => adminLoginModal.style.display = "none";
+        document.getElementById("backToMainBtn").onclick = closeAdminPanel;
+        document.getElementById("addAddressBtn").onclick = addNewInstallation;
+        
+        idModal.onclick = (e) => { if (e.target === idModal) idModal.style.display = "none"; };
+        adminLoginModal.onclick = (e) => { if (e.target === adminLoginModal) adminLoginModal.style.display = "none"; };
+    }
+    
+    function startApp() {
+        loadConfig();
+        bindButtons();
+        setupEventListeners();
+        if (!loadStoredId()) {
+            showIdModal();
+        } else {
+            messageDisplay.innerText = "Готов к работе";
+            initMqtt();
+        }
+    }
+    
+    startApp();
+</script>
+</body>
+</html>
