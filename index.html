@@ -506,7 +506,7 @@
         
         if (!data) {
             const availableIds = Object.keys(CLIENT_DATABASE).join(", ");
-            alert(`❌ ID "${newId}" не найден!\n\nДоступные ID:\n${availableIds || "(нет)"}`);
+            alert(`❌ ID "${newId}" не найден!\n\nПопробуйте другой ID`);
             return false;
         }
         
