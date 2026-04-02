@@ -100,7 +100,7 @@
             font-size: 24px;
             font-weight: 600;
             text-align: center;
-            color: #ffb86c;
+            color: #ffffff;
         }
 
         .temp-label {
@@ -506,7 +506,7 @@
         
         if (!data) {
             const availableIds = Object.keys(CLIENT_DATABASE).join(", ");
-            alert(`❌ ID "${newId}" не найден!\n\nДоступные ID:\n${availableIds || "(нет)"}`);
+            alert(`❌ ID "${newId}" не найден!\n\nПопробуйте другой ID`);
             return false;
         }
         
