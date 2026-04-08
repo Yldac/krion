@@ -252,7 +252,7 @@
         <button class="ctrl-btn" data-cmd="dry_stop">Завершить сушку</button>
     </div>
     <div class="status-badge" id="mqttStatus">🔌 Подключение...</div>
-    <div class="footer-note">MQTT: защищённое подключение (WSS)</div>
+    <div class="footer-note">Защищённое подключение (WSS)</div>
 </div>
 
 <!-- Модалка ввода ID -->
@@ -417,7 +417,7 @@
     function onConnect() {
         console.log("MQTT подключен");
         isConnecting = false;
-        mqttStatusSpan.innerText = "✅ MQTT онлайн";
+        mqttStatusSpan.innerText = "✅ Онлайн";
         
         if (mqttClient && mqttClient.isConnected() && currentTopics) {
             try {
